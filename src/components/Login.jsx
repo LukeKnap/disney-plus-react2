@@ -2,12 +2,15 @@ import React, { useState } from "react";
 import styled from "styled-components";
 import Modal from "react-modal";
 
+Modal.setAppElement("#root"); // Tento řádek je potřebný z důvodů přístupnosti
+
 const Login = (props) => {
   const [email, setEmail] = useState("");
   const [isValidEmail, setIsValidEmail] = useState(true);
   const [isCompleteEmail, setIsCompleteEmail] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
   const validateEmail = (email) => {
     var re =
@@ -24,11 +27,15 @@ const Login = (props) => {
   const handleSubscribe = () => {
     if (isValidEmail && isCompleteEmail) {
       setIsSubscribed(true);
+      setModalMessage("You have successfully subscribed to our newsletter!");
       setModalIsOpen(true);
       setTimeout(() => {
         setModalIsOpen(false);
         setIsSubscribed(false);
       }, 3000);
+    } else {
+      setModalMessage("Please enter a valid email address.");
+      setModalIsOpen(true);
     }
   };
 
@@ -87,6 +94,7 @@ const Login = (props) => {
     </Container>
   );
 };
+
 
 const Container = styled.section`
   overflow: hidden;

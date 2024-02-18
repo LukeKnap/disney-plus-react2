@@ -1,13 +1,10 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-
-import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
-
-import { db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { useParams } from "react-router-dom";
 
-const Detail = (props) => {
+const Detail = () => {
   const { id } = useParams();
   const [detailData, setDetailData] = useState({});
 

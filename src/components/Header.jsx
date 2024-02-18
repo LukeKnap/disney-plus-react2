@@ -1,105 +1,111 @@
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import React from "react";
-import { Link } from "react-router-dom";
-import { auth, provider, signInWithPopup } from "../firebase";
-
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
-
-import {
-  selectUserName,
-  selectUserPhoto,
-  setUserLoginDetails,
-  setSignOutState,
-} from "../features/user/userSlice";
-
+import { Link, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { selectUserName, selectUserPhoto, setUserLoginDetails, setSignOutState } from "../features/user/userSlice";
+import { auth, provider } from "../firebase";
+import { signInWithPopup, signOut } from "firebase/auth";
 import Search from "./Search";
 
-const Header = (props) => {
+const Header = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const userName = useSelector(selectUserName);
   const userPhoto = useSelector(selectUserPhoto);
-
-  const setUser = (user) => {
-    dispatch(
-      setUserLoginDetails({
-        name: user.displayName,
-        email: user.email,
-        photo: user.photoURL,
-      })
-    );
-  };
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // Stav pro ovládání zobrazení vyhledávacího pole
+  const [showSignOutMessage, setShowSignOutMessage] = useState(false);
 
   useEffect(() => {
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        setUser(user);
-        navigate("/home");
-      }
-    });
-  }, [userName, navigate]);
-
-  const handleAuth = () => {
-    if (!userName) {
-      signInWithPopup(auth, provider)
-        .then((result) => {
-          setUser(result.user);
-        })
-        .catch((error) => {
-          alert(error.message);
-        });
-    } else if (userName) {
-      auth
-        .signOut()
-        .then(() => {
-          dispatch(setSignOutState());
-          navigate("/");
-        })
-        .catch((err) => alert(err.message));
+    const loggedInUser = localStorage.getItem("user");
+    if (loggedInUser) {
+      const user = JSON.parse(loggedInUser);
+      setUser(user);
     }
+  }, []);
+
+  const signIn = () => {
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        setUser(result.user);
+        navigate("/home"); // Navigace na domovskou stránku po přihlášení
+      })
+      .catch((error) => {
+        alert(error.message);
+      });
+  };
+
+  const signOutUser = () => {
+    signOut(auth).then(() => {
+      dispatch(setSignOutState());
+      localStorage.removeItem("user"); // Odstranění informací o přihlášeném uživateli při odhlášení
+      navigate("/"); // Navigace na hlavní stránku po odhlášení
+    }).catch((error) => alert(error.message));
+  };
+
+  const setUser = (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
+    dispatch(setUserLoginDetails({
+      name: user.displayName,
+      email: user.email,
+      photo: user.photoURL,
+    }));
+  };
+
+  const toggleSearch = () => {
+    setIsSearchOpen(!isSearchOpen);
+  };
+
+  const handleSignOutClick = () => {
+    setShowSignOutMessage(!showSignOutMessage);
   };
 
   return (
     <Nav>
       <Logo>
-        <img src="/images/Logo-live entertainment.png" alt="Disney+" />
+        {!userName ? (
+          <Link to="/">
+            <img src="/images/logo.svg" alt="Disney+" />
+          </Link>
+        ) : (
+          <img src="/images/logo.svg" alt="Disney+" />
+        )}
       </Logo>
 
       {!userName ? (
-        <>
-          <Login onClick={handleAuth}>Login</Login>
-        </>
+        <Login onClick={signIn}>Login</Login>
       ) : (
         <>
           <NavMenu>
-            <a href="/home">
+            <Link to="/home">
               <img src="/images/home-icon.svg" alt="HOME" />
               <span>HOME</span>
-            </a>
+            </Link>
+            <Link to="/disney-history">
+              <img src="/images/disney-history-icon.svg" alt="Disney-History" />
+              <span>DISNEY-HISTORY</span>
+            </Link>
             <Link to="/movies">
               <img src="/images/movie-icon.svg" alt="MOVIES" />
               <span>MOVIES</span>
             </Link>
-            <Link to="/disney-history">
-              <img src="/images/series-icon.svg" alt="DISNEY HISTORY" />
-              <span>DISNEY HISTORY</span>
-            </Link>
-            <Search />
+            <SearchIcon onClick={toggleSearch}>
+              <img src="/images/search-icon.svg" alt="SEARCH" />
+              <span>SEARCH</span>
+            </SearchIcon>
           </NavMenu>
-          <SignOut>
-            <UserImg src={userPhoto} alt={userName} />
-            <DropDown>
-              <span onClick={handleAuth}>Sign out</span>
-            </DropDown>
-          </SignOut>
+          {isSearchOpen && <Search />} {/* Zobrazení komponenty Search podle stavu isSearchOpen */}
+          <UserImg onClick={handleSignOutClick} src={userPhoto} alt={userName} />
+          {showSignOutMessage && (
+            <SignOutMessage onClick={signOutUser}>Sign out</SignOutMessage>
+          )}
         </>
       )}
     </Nav>
   );
 };
 
+
+// Styled Components
 const Nav = styled.nav`
   position: fixed;
   top: 0;
@@ -122,7 +128,7 @@ const Logo = styled.a`
   max-height: 70px;
   font-size: 0;
   display: inline-block;
-
+  
   img {
     display: block;
     width: 100%;
@@ -130,19 +136,16 @@ const Logo = styled.a`
 `;
 
 const NavMenu = styled.div`
-  align-items: center;
   display: flex;
+  align-items: center;
   flex-flow: row nowrap;
   height: 100%;
   justify-content: flex-end;
-  margin: 0px;
-  padding: 0px;
   position: relative;
   margin-right: auto;
   margin-left: 25px;
-  cursor: pointer;
 
-  a {
+  a, div {
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -151,47 +154,20 @@ const NavMenu = styled.div`
       height: 20px;
       min-width: 20px;
       width: 20px;
-      z-index: auto;
     }
 
     span {
-      color: rgb(249, 249, 249);
+      color: #f9f9f9;
       font-size: 13px;
       letter-spacing: 1.42px;
       line-height: 1.08;
-      padding: 2px 0px;
       white-space: nowrap;
-      position: relative;
-
-      &:before {
-        background-color: rgb(249, 249, 249);
-        border-radius: 0px 0px 4px 4px;
-        bottom: -6px;
-        content: "";
-        height: 2px;
-        left: 0px;
-        opacity: 0;
-        position: absolute;
-        right: 0px;
-        transform-origin: left center;
-        transform: scaleX(0);
-        transition: all 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94) 0s;
-        visibility: hidden;
-        width: auto;
-      }
-    }
-
-    &:hover {
-      span:before {
-        transform: scaleX(1);
-        visibility: visible;
-        opacity: 1 !important;
-      }
     }
   }
 `;
 
-const Login = styled.a`
+const Login = styled.div`
+  cursor: pointer;
   background-color: rgba(0, 0, 0, 0.6);
   color: #f9f9f9;
   padding: 8px 16px;
@@ -200,7 +176,6 @@ const Login = styled.a`
   border: 1px solid #f9f9f9;
   border-radius: 4px;
   transition: all 0.2s ease 0s;
-  cursor: pointer;
 
   &:hover {
     background-color: #f9f9f9;
@@ -210,46 +185,39 @@ const Login = styled.a`
 `;
 
 const UserImg = styled.img`
-  height: 100%;
-`;
-
-const DropDown = styled.div`
-  position: absolute;
-  top: 48px;
-  right: 0px;
-  background: rgb(19, 19, 19);
-  border: 1px solid rgba(151, 151, 151, 0.34);
-  border-radius: 4px;
-  box-shadow: rgb(0 0 0 / 50%) 0px 0px 18px 0px;
-  padding: 10px;
-  font-size: 14px;
-  letter-spacing: 3px;
-  width: 100px;
-  opacity: 0;
-  color: #fff;
-`;
-
-const SignOut = styled.div`
-  position: relative;
-  height: 48px;
   width: 48px;
-  display: flex;
+  height: 48px;
+  border-radius: 50%;
   cursor: pointer;
-  align-items: center;
-  justify-content: center;
+`;
 
-  ${UserImg} {
-    border-radius: 50%;
-    width: 100%;
-    height: 100%;
-  }
+const SearchIcon = styled.div`
+cursor: pointer;
+`;
 
-  &:hover {
-    ${DropDown} {
-      opacity: 1;
-      transition-duration: 1s;
-    }
-  }
+const SearchField = styled.input`
+  margin-left: 20px;
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  outline: none;
+`;
+
+const SignOutMessage = styled.div`
+  position: absolute;
+  right: 3%;
+  top: calc(100% + 5px); 
+  transform: translateX(50%); 
+  background-color: #333333; 
+  border: 1px solid #cccccc;
+  border-radius: 10px;
+  padding: 5px 10px;
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
+  color: #ffffff; 
+  cursor: pointer;
+  letter-spacing: 2px; 
 `;
 
 export default Header;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -7,9 +8,9 @@ const Movies = () => {
 
   useEffect(() => {
     const fetchMovies = async () => {
-      const moviesCollection = collection(db, "nazev_kolekce");
+      const moviesCollection = collection(db, "movies");
       const movieSnapshot = await getDocs(moviesCollection);
-      const movieList = movieSnapshot.docs.map((doc) => doc.data());
+      const movieList = movieSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMovies(movieList);
     };
 
@@ -18,16 +19,13 @@ const Movies = () => {
 
   return (
     <div>
-      <a>
-        <img src="/images/movie-icon.svg" alt="MOVIES" />
-        <span>MOVIES</span>
-      </a>
       {movies.map((movie, index) => (
-        <div key={index}>
-          <img src={movie.cardImg} alt={movie.title} />
-          <h2>{movie.title}</h2>
-          <p>{movie.description}</p>
-        </div>
+        <Link to={`/movie/${movie.id}`} key={index}>
+          <div>
+            <img src={movie.cardImg} alt={movie.title} />
+            <h2>{movie.title}</h2>
+          </div>
+        </Link>
       ))}
     </div>
   );
